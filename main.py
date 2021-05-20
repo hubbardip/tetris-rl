@@ -64,47 +64,25 @@ class QModel(nn.Module):
             a = self.g(z)
         return a
 
+
     def train(self, target_network, batch_size=128):
         if len(self.memory) < batch_size:
             return
-        times = [time.time()]
         transitions = self.memory.sample(batch_size)
-        times.append(time.time())
         batch = tuple(zip(*transitions)) #turns list of tuples into tuple of lists
-        times.append(time.time())
-        #print(batch[1])
-        non_term_mask = T(tuple(map(lambda s: s is not None, batch[3])), dtype=torch.bool)
-        times.append(time.time())
-        non_term_sps = torch.cat([s for s in batch[3] if s is not None])
-        times.append(time.time())
 
         s_batch = torch.stack(batch[0])
         a_batch = torch.stack(batch[1])
         r_batch = torch.stack(batch[2])
-        times.append(time.time())
+        sp_batch = torch.stack(batch[3])
 
-        yhat = self.forward(s_batch)
-        Qs = yhat.gather(1, a_batch.view(-1, 1))
-        times.append(time.time())
-        
-        next_Qs = torch.zeros(batch_size)
-        next_Qs[non_term_mask] = target_network(non_term_sps).max(1)[0].detach()
-        times.append(time.time())
-        
-        expected_Qs = r_batch + self.gamma*next_Qs
+        Qs = self.forward(s_batch).gather(1, a_batch.view(-1, 1))
 
-        l = self.cost(Qs, expected_Qs.unsqueeze(1))
-        times.append(time.time())
+        next_Qs = r_batch + self.gamma * self.forward(sp_batch).max(1)[0] #r + gamma*(max_a Q(s', a))
+        l = self.cost(Qs, next_Qs.unsqueeze(1))
         self.op.zero_grad()
         l.backward()
         self.op.step()
-        times.append(time.time())
-
-        ts = []
-        for i in range(1, len(times)):
-            ts.append(times[i]-times[i-1])
-        print(ts)
-        print(np.argmax(ts))
         
 
     def sample_action(self, x, eps):
@@ -123,13 +101,14 @@ def play_one(env, model, tmodel, eps, copy_period):
     iters = 0
 
     while not done:
+        print(iters)
         a = model.sample_action(obs, eps)
         prev_obs = obs
         raw_obs, r, done, _ = env.step(a)
         obs = process_obs(raw_obs)
         model.memory.push((T(prev_obs), T(a), T(r), T(obs)))
 
-        model.train(tmodel) #SLOW
+        model.train2(tmodel) #SLOW
         #env.render()
         tot_r += r
         iters += 1
