@@ -101,7 +101,6 @@ def play_one(env, model, tmodel, eps, copy_period):
     iters = 0
 
     while not done:
-        print(iters)
         a = model.sample_action(obs, eps)
         prev_obs = obs
         raw_obs, r, done, _ = env.step(a)
