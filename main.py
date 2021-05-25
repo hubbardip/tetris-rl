@@ -108,7 +108,7 @@ def play_one(env, model, tmodel, eps, copy_period):
         obs = process_obs(raw_obs)
         model.memory.push((T(prev_obs), T(a), T(r), T(obs)))
 
-        model.train2(tmodel) #SLOW
+        model.train(tmodel) #SLOW
         #env.render()
         tot_r += r
         iters += 1
