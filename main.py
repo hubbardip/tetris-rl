@@ -58,7 +58,7 @@ class QModel(nn.Module):
         self.cost = nn.SmoothL1Loss()
 
     def forward(self, X):
-        a = X.view(-1, 1, 80, 80)
+        a = X.view(-1, 1, 80, 80).cuda()
         for l in self.layers:
             z = l(a)
             a = self.g(z)
@@ -90,7 +90,7 @@ class QModel(nn.Module):
             return np.random.choice(self.K)
         else:
             X = T(x)
-            return np.argmax(self.forward(X.float()).detach().numpy())
+            return np.argmax(self.forward(X.float()).detach().cpu().numpy())
         
 
 def play_one(env, model, tmodel, eps, copy_period):
@@ -114,6 +114,7 @@ def play_one(env, model, tmodel, eps, copy_period):
         tot_iters += 1
         if tot_iters % copy_period == 0:
             tmodel.load_state_dict(model.state_dict())
+            print(iters)
 
     return tot_r
 
@@ -140,9 +141,11 @@ rs = np.zeros(N)
 for n in range(N):
     eps = 2/np.sqrt(n+1)
     #eps = np.log(n+8)/np.sqrt(n+5)
+    tic = time.time()
     tot_r = play_one(env, model, tmodel, eps, 50)
     rs[n] = tot_r
-    print(f"Episode {n}, total reward {tot_r}, avg loss")
+    toc = time.time()
+    print(f"Episode {n}, total reward {tot_r}, time {toc-tic}")
 print(f"Average reward for final 100 episodes: {rs[-100:].mean()}")
-
+torch.save(model.state_dict(), "./model")
 env.close()
