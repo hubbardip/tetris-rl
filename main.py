@@ -71,12 +71,12 @@ class QModel(nn.Module):
         transitions = self.memory.sample(batch_size)
         batch = tuple(zip(*transitions)) #turns list of tuples into tuple of lists
 
-        s_batch = torch.stack(batch[0])
-        a_batch = torch.stack(batch[1])
-        r_batch = torch.stack(batch[2])
-        sp_batch = torch.stack(batch[3])
+        s_batch = torch.stack(batch[0]).cuda()
+        a_batch = torch.stack(batch[1]).cuda()
+        r_batch = torch.stack(batch[2]).cuda()
+        sp_batch = torch.stack(batch[3]).cuda()
 
-        Qs = self.forward(s_batch).gather(1, a_batch.view(-1, 1))
+        Qs = self.cuda()(s_batch).gather(1, a_batch.view(-1, 1))
 
         next_Qs = r_batch + self.gamma * self.forward(sp_batch).max(1)[0] #r + gamma*(max_a Q(s', a))
         l = self.cost(Qs, next_Qs.unsqueeze(1))
